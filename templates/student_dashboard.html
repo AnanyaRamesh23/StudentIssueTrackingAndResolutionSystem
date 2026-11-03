@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Student Dashboard</h2>
+        <p class="page-subtitle">
+            Student: <strong>{{ session.get('user_name') }}</strong> &bull; ID: <strong>#{{ session.get('user_id') }}</strong> &bull; Department: <strong>{{ session.get('student_dept') }}</strong> (Year {{ session.get('student_year') }})
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('student.submit_issue_page') }}" class="btn btn-primary">
+            Submit New Issue
+        </a>
+    </div>
+</div>
+
+<!-- Summary Metric Cards with Clear Numbers -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">Total Issues</span>
+        <span class="stat-value">{{ stats.total }}</span>
+        <span class="stat-desc">Submitted by you</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Pending / Assigned</span>
+        <span class="stat-value" style="color: var(--status-assigned-text);">{{ stats.submitted + stats.assigned }}</span>
+        <span class="stat-desc">{{ stats.submitted }} Pending &bull; {{ stats.assigned }} Assigned</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">In Progress</span>
+        <span class="stat-value" style="color: var(--status-inprogress-text);">{{ stats.in_progress }}</span>
+        <span class="stat-desc">Active investigation</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Resolved / Closed</span>
+        <span class="stat-value" style="color: var(--status-resolved-text);">{{ stats.resolved + stats.closed }}</span>
+        <span class="stat-desc">{{ stats.resolved }} Resolved &bull; {{ stats.closed }} Closed</span>
+    </div>
+    {% if stats.overdue > 0 %}
+    <div class="stat-card overdue-alert">
+        <span class="stat-label">Overdue Tickets</span>
+        <span class="stat-value">{{ stats.overdue }}</span>
+        <span class="stat-desc">Past Category SLA target</span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Issues Section with Proper Numbering -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>Recent Submitted Issues</h3>
+        <a href="{{ url_for('student.my_issues') }}" class="btn btn-secondary btn-sm">
+            View All Issues ({{ stats.total }}) &rarr;
+        </a>
+    </div>
+
+    {% if issues %}
+    <table class="responsive-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">#</th>
+                <th>Ticket ID</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Location</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Responsible Staff</th>
+                <th>Due Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in issues %}
+            <tr>
+                <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                <td><strong>#{{ issue.Issue_ID }}</strong></td>
+                <td>{{ issue.Category_Name }}</td>
+                <td style="max-width: 280px;">
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ issue.Description }}">
+                        {{ issue.Description }}
+                    </div>
+                </td>
+                <td>{{ issue.Location }}</td>
+                <td>
+                    <span class="badge badge-p-{{ issue.Priority.lower() }}">
+                        {{ issue.Priority }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge badge-status-{{ issue.Status_ID }}">
+                        {{ issue.Status_Name }}
+                    </span>
+                    {% if issue.Is_Overdue %}
+                        <span class="badge badge-overdue">OVERDUE</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if issue.Staff_Name %}
+                        {{ issue.Staff_Name }}
+                    {% else %}
+                        <span style="color: var(--text-muted); font-style: italic;">Unassigned</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span style="font-size: 0.85rem; color: {% if issue.Is_Overdue %}var(--status-overdue-text); font-weight:700;{% else %}var(--text-muted);{% endif %}">
+                        {{ issue.Due_Date }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('student.view_issue_details', issue_id=issue.Issue_ID) }}" class="btn btn-secondary btn-sm">
+                        View Details
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p style="font-size: 1rem; margin-bottom: 0.5rem;">No issues submitted yet.</p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Submit an issue ticket to request maintenance or academic assistance.</p>
+        <a href="{{ url_for('student.submit_issue_page') }}" class="btn btn-primary">Submit First Issue</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

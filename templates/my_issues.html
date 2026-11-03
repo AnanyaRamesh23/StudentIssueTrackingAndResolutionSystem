@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}My Issues{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">My Submitted Issues</h2>
+        <p class="page-subtitle">Track issue progression, assigned handlers, investigation actions, and submit resolution ratings.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('student.submit_issue_page') }}" class="btn btn-primary">
+            Submit New Issue
+        </a>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" action="{{ url_for('student.my_issues') }}" class="filter-bar">
+    <div class="filter-item">
+        <label for="status" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Status</label>
+        <select name="status" id="status" class="form-control" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for st in statuses %}
+                <option value="{{ st.Status_ID }}" {% if selected_status == st.Status_ID|string %}selected{% endif %}>
+                    {{ st.Status_Name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="filter-item">
+        <label for="category" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Category</label>
+        <select name="category" id="category" class="form-control" onchange="this.form.submit()">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+                <option value="{{ cat.Category_ID }}" {% if selected_category == cat.Category_ID|string %}selected{% endif %}>
+                    {{ cat.Category_Name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="filter-item">
+        <label for="priority" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Priority</label>
+        <select name="priority" id="priority" class="form-control" onchange="this.form.submit()">
+            <option value="">All Priorities</option>
+            <option value="Critical" {% if selected_priority == 'Critical' %}selected{% endif %}>Critical</option>
+            <option value="High" {% if selected_priority == 'High' %}selected{% endif %}>High</option>
+            <option value="Medium" {% if selected_priority == 'Medium' %}selected{% endif %}>Medium</option>
+            <option value="Low" {% if selected_priority == 'Low' %}selected{% endif %}>Low</option>
+        </select>
+    </div>
+
+    <div class="filter-item" style="flex: 2; min-width: 220px;">
+        <label for="q" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Search</label>
+        <input type="text" name="q" id="q" class="form-control" placeholder="Search keywords in description..." value="{{ search_query or '' }}">
+    </div>
+
+    <div>
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        {% if selected_status or selected_category or selected_priority or search_query %}
+            <a href="{{ url_for('student.my_issues') }}" class="btn btn-secondary" title="Clear Filters">Reset</a>
+        {% endif %}
+    </div>
+</form>
+
+<!-- Issues List Table with Row Numbers -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>Registered Issues ({{ issues|length }})</h3>
+        <span class="badge badge-secondary">{{ issues|length }} Total Records</span>
+    </div>
+
+    {% if issues %}
+    <table class="responsive-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">#</th>
+                <th>Ticket ID</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Location</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Assigned Staff</th>
+                <th>Submitted On</th>
+                <th>Due Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in issues %}
+            <tr>
+                <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                <td><strong>#{{ issue.Issue_ID }}</strong></td>
+                <td><span style="font-weight: 600;">{{ issue.Category_Name }}</span></td>
+                <td style="max-width: 250px;">
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ issue.Description }}">
+                        {{ issue.Description }}
+                    </div>
+                </td>
+                <td>{{ issue.Location }}</td>
+                <td>
+                    <span class="badge badge-p-{{ issue.Priority.lower() }}">
+                        {{ issue.Priority }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge badge-status-{{ issue.Status_ID }}">
+                        {{ issue.Status_Name }}
+                    </span>
+                    {% if issue.Is_Overdue %}
+                        <span class="badge badge-overdue">OVERDUE</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if issue.Staff_Name %}
+                        {{ issue.Staff_Name }}
+                    {% else %}
+                        <span style="color: var(--text-muted); font-style: italic;">Unassigned</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 0.8rem; color: var(--text-muted);">{{ issue.Date_Submitted }}</td>
+                <td>
+                    <span style="font-size: 0.85rem; color: {% if issue.Is_Overdue %}var(--status-overdue-text); font-weight:700;{% else %}var(--text-muted);{% endif %}">
+                        {{ issue.Due_Date }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('student.view_issue_details', issue_id=issue.Issue_ID) }}" class="btn btn-secondary btn-sm">
+                        View Details
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No issues match the selected criteria.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

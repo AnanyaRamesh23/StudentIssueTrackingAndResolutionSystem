@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Issue Assignment & Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Issue Management & Assignment</h2>
+        <p class="page-subtitle">Track, investigate, reassign, and resolve issues across college departments.</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+            Institution Overview
+        </a>
+    </div>
+</div>
+
+<!-- Scope Toggle & Filter Bar -->
+<div class="filter-bar" style="align-items: center; justify-content: space-between;">
+    <!-- Scope Tabs -->
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('staff.assigned_issues', scope='mine') }}" class="btn {% if selected_scope == 'mine' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
+            My Assigned Issues
+        </a>
+        <a href="{{ url_for('staff.assigned_issues', scope='all') }}" class="btn {% if selected_scope == 'all' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
+            All Campus Issues
+        </a>
+    </div>
+
+    <!-- Search / Filter Form -->
+    <form method="GET" action="{{ url_for('staff.assigned_issues') }}" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+        <input type="hidden" name="scope" value="{{ selected_scope }}">
+
+        <select name="status" class="form-control" style="width: auto; padding: 0.4rem 0.6rem; font-size: 0.85rem;" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for st in statuses %}
+                <option value="{{ st.Status_ID }}" {% if selected_status == st.Status_ID|string %}selected{% endif %}>
+                    {{ st.Status_Name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="category" class="form-control" style="width: auto; padding: 0.4rem 0.6rem; font-size: 0.85rem;" onchange="this.form.submit()">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+                <option value="{{ cat.Category_ID }}" {% if selected_category == cat.Category_ID|string %}selected{% endif %}>
+                    {{ cat.Category_Name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="priority" class="form-control" style="width: auto; padding: 0.4rem 0.6rem; font-size: 0.85rem;" onchange="this.form.submit()">
+            <option value="">All Priorities</option>
+            <option value="Critical" {% if selected_priority == 'Critical' %}selected{% endif %}>Critical</option>
+            <option value="High" {% if selected_priority == 'High' %}selected{% endif %}>High</option>
+            <option value="Medium" {% if selected_priority == 'Medium' %}selected{% endif %}>Medium</option>
+            <option value="Low" {% if selected_priority == 'Low' %}selected{% endif %}>Low</option>
+        </select>
+
+        <input type="text" name="q" class="form-control" style="width: 180px; padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Search keyword..." value="{{ search_query or '' }}">
+
+        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+        {% if selected_status or selected_category or selected_priority or search_query %}
+            <a href="{{ url_for('staff.assigned_issues', scope=selected_scope) }}" class="btn btn-secondary btn-sm">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Issues Table with Row Numbers -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>
+            {% if selected_scope == 'mine' %}Issues Assigned to Me{% else %}All Registered Campus Issues{% endif %} ({{ issues|length }})
+        </h3>
+        <span class="badge badge-secondary">{{ issues|length }} Records</span>
+    </div>
+
+    {% if issues %}
+    <table class="responsive-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">#</th>
+                <th>Ticket ID</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Reporting Student</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Responsible Staff</th>
+                <th>Due Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in issues %}
+            <tr>
+                <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                <td><strong>#{{ issue.Issue_ID }}</strong></td>
+                <td><span style="font-weight: 600;">{{ issue.Category_Name }}</span></td>
+                <td style="max-width: 250px;">
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ issue.Description }}">
+                        {{ issue.Description }}
+                    </div>
+                </td>
+                <td>
+                    <div><strong>{{ issue.Student_Name }}</strong></div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Dept: {{ issue.Student_Dept }} (ID: #{{ issue.Student_ID }})</div>
+                </td>
+                <td>
+                    <span class="badge badge-p-{{ issue.Priority.lower() }}">
+                        {{ issue.Priority }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge badge-status-{{ issue.Status_ID }}">
+                        {{ issue.Status_Name }}
+                    </span>
+                    {% if issue.Is_Overdue %}
+                        <span class="badge badge-overdue">OVERDUE</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if issue.Staff_Name %}
+                        <div><strong>{{ issue.Staff_Name }}</strong></div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ issue.Staff_Dept }}</div>
+                    {% else %}
+                        <span style="color: var(--text-muted); font-style: italic;">Unassigned</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span style="font-size: 0.85rem; color: {% if issue.Is_Overdue %}var(--status-overdue-text); font-weight:700;{% else %}var(--text-muted);{% endif %}">
+                        {{ issue.Due_Date }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('student.view_issue_details', issue_id=issue.Issue_ID) }}" class="btn btn-secondary btn-sm">
+                        Manage Issue
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No issues found for the selected scope and filters.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

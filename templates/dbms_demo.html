@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}DBMS Concepts & Viva Showcase{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">DBMS Concepts & Viva Examination Showcase</h2>
+        <p class="page-subtitle">
+            Live demonstration of Relational Normalization (3NF), Multi-Table JOINs, Views, Aggregation (GROUP BY/HAVING), Triggers, Stored Procedures, and ACID Transactions.
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+            &larr; Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Viva Quick Info Card -->
+<div class="viva-box" style="margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 style="color: var(--brand-primary); font-size: 1.05rem; margin-bottom: 0.25rem; font-weight: 700;">
+                Academic Laboratory Project Architecture
+            </h3>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-body);">
+                <strong>System:</strong> Student Issue Tracking & Resolution System &bull; 
+                <strong>Normalization:</strong> 3NF Relational Schema &bull; 
+                <strong>Integrity:</strong> Referential Constraints & ACID Compliance
+            </p>
+        </div>
+        <div>
+            <span class="db-pill" style="font-size: 0.85rem; padding: 6px 14px;">
+                Active Engine: <strong>{{ active_db_engine }}</strong>
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================================
+     CONCEPT 1: MULTI-TABLE JOIN QUERY
+     ========================================================================= -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>1. Multi-Table JOIN Query (5 Relational Tables)</h3>
+        <span class="badge badge-primary">INNER & LEFT JOIN</span>
+    </div>
+    <div style="padding: 1.25rem;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Combines <code>ISSUE</code>, <code>STUDENT</code>, <code>CATEGORY</code>, <code>STATUS</code>, and <code>STAFF</code> without data duplication.
+        </p>
+        <div class="code-card">
+SELECT 
+    i.Issue_ID, s.Name AS Student_Name, c.Category_Name, 
+    COALESCE(sf.Name, 'Unassigned') AS Staff_Name, 
+    st.Status_Name, i.Priority, i.Due_Date
+FROM ISSUE i
+JOIN STUDENT s ON i.Student_ID = s.Student_ID
+JOIN CATEGORY c ON i.Category_ID = c.Category_ID
+JOIN STATUS st ON i.Status_ID = st.Status_ID
+LEFT JOIN STAFF sf ON i.Staff_ID = sf.Staff_ID
+ORDER BY i.Issue_ID ASC LIMIT 6;
+        </div>
+
+        <h4 style="font-size: 0.9rem; color: var(--brand-primary); margin: 1rem 0 0.5rem 0; font-weight: 700;">Live Query Result:</h4>
+        <table class="responsive-table">
+            <thead>
+                <tr>
+                    <th>Issue ID</th>
+                    <th>Student Name</th>
+                    <th>Category</th>
+                    <th>Assigned Staff</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Due Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in join_results %}
+                <tr>
+                    <td><strong>#{{ row.Issue_ID }}</strong></td>
+                    <td>{{ row.Student_Name }}</td>
+                    <td>{{ row.Category_Name }}</td>
+                    <td>{{ row.Staff_Name }}</td>
+                    <td>{{ row.Status_Name }}</td>
+                    <td><span class="badge badge-p-{{ row.Priority.lower() }}">{{ row.Priority }}</span></td>
+                    <td>{{ row.Due_Date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =========================================================================
+     CONCEPT 2: AGGREGATION WITH GROUP BY AND HAVING
+     ========================================================================= -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>2. Aggregation with GROUP BY and HAVING Clause</h3>
+        <span class="badge badge-warning">GROUP BY & HAVING</span>
+    </div>
+    <div style="padding: 1.25rem;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Calculates average student satisfaction ratings per staff member, filtering only staff who have handled <strong>at least 2 issues</strong> using <code>HAVING COUNT(i.Issue_ID) >= 2</code>.
+        </p>
+        <div class="code-card">
+SELECT 
+    sf.Staff_ID, sf.Name AS Staff_Name, sf.Department, sf.Role,
+    COUNT(i.Issue_ID) AS Issue_Count,
+    ROUND(AVG(f.Rating), 2) AS Avg_Rating
+FROM STAFF sf
+JOIN ISSUE i ON sf.Staff_ID = i.Staff_ID
+LEFT JOIN FEEDBACK f ON i.Issue_ID = f.Issue_ID
+GROUP BY sf.Staff_ID, sf.Name, sf.Department, sf.Role
+HAVING COUNT(i.Issue_ID) >= 2
+ORDER BY Issue_Count DESC;
+        </div>
+
+        <h4 style="font-size: 0.9rem; color: var(--brand-primary); margin: 1rem 0 0.5rem 0; font-weight: 700;">Live Query Result (Filtered by HAVING):</h4>
+        <table class="responsive-table">
+            <thead>
+                <tr>
+                    <th>Staff ID</th>
+                    <th>Staff Name</th>
+                    <th>Department</th>
+                    <th>Handled Issues (COUNT)</th>
+                    <th>Average Rating (AVG)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in having_results %}
+                <tr>
+                    <td>{{ row.Staff_ID }}</td>
+                    <td><strong>{{ row.Staff_Name }}</strong></td>
+                    <td>{{ row.Department }}</td>
+                    <td><span class="badge badge-secondary" style="font-size: 0.85rem;">{{ row.Issue_Count }} Issues</span></td>
+                    <td>
+                        {% if row.Avg_Rating %}
+                            <strong>{{ row.Avg_Rating }} / 5.0</strong>
+                        {% else %}
+                            <span style="color: var(--text-muted);">No ratings yet</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =========================================================================
+     CONCEPT 3: DATABASE VIEWS
+     ========================================================================= -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>3. Database View: <code>v_staff_workload</code></h3>
+        <span class="badge badge-success">SQL Views</span>
+    </div>
+    <div style="padding: 1.25rem;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Virtual table that encapsulates aggregation metrics (Assigned, In Progress, Resolved, Closed, Overdue) across <code>STAFF</code>, <code>ISSUE</code>, and <code>STATUS</code>.
+        </p>
+        <div class="code-card">
+CREATE OR REPLACE VIEW v_staff_workload AS
+SELECT 
+    sf.Staff_ID, sf.Name AS Staff_Name, sf.Department, sf.Role,
+    COUNT(i.Issue_ID) AS Total_Assigned,
+    SUM(CASE WHEN st.Status_Name = 'In Progress' THEN 1 ELSE 0 END) AS In_Progress_Count,
+    SUM(CASE WHEN st.Status_Name = 'Resolved' THEN 1 ELSE 0 END) AS Resolved_Count,
+    SUM(CASE WHEN st.Status_Name = 'Closed' THEN 1 ELSE 0 END) AS Closed_Count,
+    SUM(CASE WHEN i.Due_Date < CURDATE() AND st.Status_Name NOT IN ('Resolved', 'Closed') THEN 1 ELSE 0 END) AS Overdue_Count
+FROM STAFF sf
+LEFT JOIN ISSUE i ON sf.Staff_ID = i.Staff_ID
+LEFT JOIN STATUS st ON i.Status_ID = st.Status_ID
+GROUP BY sf.Staff_ID, sf.Name, sf.Department, sf.Role;
+        </div>
+
+        <h4 style="font-size: 0.9rem; color: var(--brand-primary); margin: 1rem 0 0.5rem 0; font-weight: 700;">Queried from View: <code>SELECT * FROM v_staff_workload LIMIT 5;</code></h4>
+        <table class="responsive-table">
+            <thead>
+                <tr>
+                    <th>Staff Name</th>
+                    <th>Department</th>
+                    <th>Total Assigned</th>
+                    <th>In Progress</th>
+                    <th>Resolved</th>
+                    <th>Closed</th>
+                    <th>Overdue Tasks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in view_workload %}
+                <tr>
+                    <td><strong>{{ row.Staff_Name }}</strong></td>
+                    <td>{{ row.Department }}</td>
+                    <td>{{ row.Total_Assigned }}</td>
+                    <td>{{ row.In_Progress_Count }}</td>
+                    <td>{{ row.Resolved_Count }}</td>
+                    <td>{{ row.Closed_Count }}</td>
+                    <td>
+                        {% if row.Overdue_Count > 0 %}
+                            <span class="badge badge-overdue">{{ row.Overdue_Count }} Overdue</span>
+                        {% else %}
+                            0
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =========================================================================
+     CONCEPT 4: ACID TRANSACTIONS & REASSIGNMENT AUDIT LOG
+     ========================================================================= -->
+<div class="table-card">
+    <div class="table-header-bar" style="background: #fffbeb; border-bottom: 1px solid #fde68a;">
+        <h3 style="color: #92400e;">4. ACID Transaction Demonstration (Issue Reassignment)</h3>
+        <span class="badge badge-warning">ACID Transactions</span>
+    </div>
+    <div style="padding: 1.25rem;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            When an issue is reassigned, multiple operations execute inside an atomic transaction:
+            <code>UPDATE ISSUE.Staff_ID</code> and <code>INSERT INTO REASSIGNMENT_LOG</code>. If either fails, the entire transaction is rolled back.
+        </p>
+        <div class="code-card">
+START TRANSACTION;
+    -- Step 1: Update issue handler and transition status if necessary
+    UPDATE ISSUE SET Staff_ID = p_new_staff_id, Status_ID = 2 WHERE Issue_ID = p_issue_id;
+    -- Step 2: Write permanent audit record
+    INSERT INTO REASSIGNMENT_LOG (Issue_ID, Old_Staff_ID, New_Staff_ID, Reassigned_On, Reason)
+    VALUES (p_issue_id, v_old_staff_id, p_new_staff_id, NOW(), p_reason);
+COMMIT;
+        </div>
+
+        <h4 style="font-size: 0.9rem; color: var(--brand-primary); margin: 1rem 0 0.5rem 0; font-weight: 700;">Live Audit Records in <code>REASSIGNMENT_LOG</code>:</h4>
+        <table class="responsive-table">
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Issue ID</th>
+                    <th>Previous Staff</th>
+                    <th>New Staff</th>
+                    <th>Reassigned On</th>
+                    <th>Mandatory Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reassignment_logs %}
+                <tr>
+                    <td>#{{ r.Reassign_ID }}</td>
+                    <td><strong>#{{ r.Issue_ID }}</strong></td>
+                    <td>{{ r.Old_Staff or 'Unassigned' }}</td>
+                    <td><strong>{{ r.New_Staff }}</strong></td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ r.Reassigned_On }}</td>
+                    <td>{{ r.Reason }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =========================================================================
+     CONCEPT 5: 1:1 RELATIONSHIP & CHECK CONSTRAINTS (FEEDBACK)
+     ========================================================================= -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>5. 1:1 Relationship & CHECK Constraints (FEEDBACK Table)</h3>
+        <span class="badge badge-primary">UNIQUE & CHECK</span>
+    </div>
+    <div style="padding: 1.25rem;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Enforces that each closed/resolved issue can have at most one feedback record (<code>Issue_ID UNIQUE</code>) and rating is between 1 and 5 (<code>CHECK (Rating BETWEEN 1 AND 5)</code>).
+        </p>
+        <div class="code-card">
+CREATE TABLE FEEDBACK (
+    Feedback_ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    Issue_ID INT NOT NULL UNIQUE,       -- 1:1 Relationship constraint!
+    Rating INT NOT NULL,
+    Comments TEXT NULL,
+    Submitted_On DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_feedback_issue FOREIGN KEY (Issue_ID) REFERENCES ISSUE(Issue_ID) ON DELETE CASCADE,
+    CONSTRAINT chk_feedback_rating CHECK (Rating BETWEEN 1 AND 5)
+);
+        </div>
+
+        <h4 style="font-size: 0.9rem; color: var(--brand-primary); margin: 1rem 0 0.5rem 0; font-weight: 700;">Live Database Records in <code>FEEDBACK</code>:</h4>
+        <table class="responsive-table">
+            <thead>
+                <tr>
+                    <th>Feedback ID</th>
+                    <th>Issue ID</th>
+                    <th>Student Name</th>
+                    <th>Category</th>
+                    <th>Assigned Staff</th>
+                    <th>Rating</th>
+                    <th>Student Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in feedback_ratings %}
+                <tr>
+                    <td>#{{ f.Feedback_ID }}</td>
+                    <td><strong>#{{ f.Issue_ID }}</strong></td>
+                    <td>{{ f.Student_Name }}</td>
+                    <td>{{ f.Category_Name }}</td>
+                    <td>{{ f.Staff_Name or 'Unassigned' }}</td>
+                    <td>
+                        <strong>{{ f.Rating }} / 5.0</strong>
+                    </td>
+                    <td style="font-size: 0.85rem; font-style: italic;">"{{ f.Comments }}"</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =========================================================================
+     CONCEPT 6: 3NF NORMALIZATION PROOF
+     ========================================================================= -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>6. Relational Normalization Architecture (Up to 3NF)</h3>
+        <span class="badge badge-info">3NF Normalized</span>
+    </div>
+    <div style="padding: 1.25rem; font-size: 0.9rem; line-height: 1.6;">
+        <ul style="padding-left: 1.25rem;">
+            <li><strong>First Normal Form (1NF):</strong> All attributes contain atomic, scalar values. Every table possesses an explicit primary key.</li>
+            <li><strong>Second Normal Form (2NF):</strong> Achieved 1NF and no non-prime attribute depends on a partial key. Every table uses a single-attribute primary key, completely eliminating partial functional dependencies.</li>
+            <li><strong>Third Normal Form (3NF):</strong> Achieved 2NF and strictly no transitive functional dependencies ($X \rightarrow Y \rightarrow Z$).
+                <ul style="margin-top: 0.5rem;">
+                    <li>Student names, departments, and years are stored <em>only</em> in <code>STUDENT</code>.</li>
+                    <li>Staff names, departments, and roles are stored <em>only</em> in <code>STAFF</code>.</li>
+                    <li>Category names and default SLA days are stored <em>only</em> in <code>CATEGORY</code>.</li>
+                    <li>Status descriptions are stored <em>only</em> in <code>STATUS</code>.</li>
+                    <li><code>ISSUE</code> only holds foreign key references (<code>Student_ID</code>, <code>Staff_ID</code>, <code>Category_ID</code>, <code>Status_ID</code>).</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

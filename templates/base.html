@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Student Issue Tracking & Resolution System{% endblock %} | Campus Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Academic Header -->
+    <header class="academic-header">
+        <div class="header-top">
+            <div class="brand-section">
+                <div class="brand-logo-mark" aria-hidden="true" title="Campus Issue Resolution">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path d="m9 12 2 2 4-4"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>STUDENT ISSUE TRACKING AND RESOLUTION SYSTEM</h1>
+                    <p>Campus Issue Tracking & Student Support Services</p>
+                </div>
+            </div>
+
+            <div class="user-status-section">
+                {% if session.get('user_id') is not none %}
+                    <div class="user-badge">
+                        <span>{{ session.get('user_name') }}</span>
+                        <span class="role-pill">{{ session.get('user_role') }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Navigation Bar -->
+        <nav class="navbar">
+            <ul class="nav-links">
+                {% if session.get('user_role') == 'student' %}
+                    <li><a href="{{ url_for('student.dashboard') }}">Dashboard</a></li>
+                    <li><a href="{{ url_for('student.submit_issue_page') }}">Submit Issue</a></li>
+                    <li><a href="{{ url_for('student.my_issues') }}">My Issues</a></li>
+                {% elif session.get('user_role') == 'staff' %}
+                    <li><a href="{{ url_for('staff.dashboard') }}">Dashboard</a></li>
+                    <li><a href="{{ url_for('staff.assigned_issues') }}">Assigned Issues</a></li>
+                    <li><a href="{{ url_for('admin.dashboard') }}">Institution Overview</a></li>
+                {% elif session.get('user_role') == 'admin' %}
+                    <li><a href="{{ url_for('admin.dashboard') }}">Admin Overview</a></li>
+                    <li><a href="{{ url_for('staff.assigned_issues', scope='all') }}">All Campus Issues</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('auth.login') }}">Portal Sign In</a></li>
+                    <li><a href="{{ url_for('auth.register') }}">Student Registration</a></li>
+                {% endif %}
+            </ul>
+
+            <ul class="nav-links">
+                {% if session.get('user_id') is not none %}
+                    <li><a href="{{ url_for('auth.logout') }}" class="nav-btn-logout">Logout</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="container">
+        <!-- Flash Alert Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flashes">
+                    {% for category, message in messages %}
+                        <li class="alert alert-{{ category }}">
+                            <span>{{ message }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Academic Footer -->
+    <footer class="academic-footer">
+        <div class="footer-content">
+            <div class="footer-left">
+                <p><strong>Student Issue Tracking and Resolution System</strong></p>
+                <p>Department of Information Science & Engineering</p>
+                <p>Official Campus Support & Facility Resolution Portal</p>
+            </div>
+            <div class="footer-right">
+                <p><strong>Candidate:</strong> {{ student_name }} (USN: {{ student_usn }})</p>
+                <p><strong>Branch / Semester:</strong> {{ student_branch }}</p>
+                <p><strong>Faculty Guide:</strong> {{ faculty_guide }}</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

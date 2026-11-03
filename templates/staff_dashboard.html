@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Faculty & Staff Dashboard</h2>
+        <p class="page-subtitle">
+            Staff Handler: <strong>{{ session.get('user_name') }}</strong> &bull; ID: <strong>#{{ session.get('user_id') }}</strong> &bull; Department: <strong>{{ session.get('staff_dept') }}</strong> &bull; Designation: <strong>{{ session.get('staff_role_title') }}</strong>
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('staff.assigned_issues', scope='mine') }}" class="btn btn-primary">
+            View Assigned Issues ({{ stats.total_assigned }})
+        </a>
+    </div>
+</div>
+
+<!-- Workload Summary Cards with Clear Numbers -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">Assigned To Me</span>
+        <span class="stat-value">{{ stats.total_assigned }}</span>
+        <span class="stat-desc">Active & resolved tickets</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">In Progress</span>
+        <span class="stat-value" style="color: var(--status-inprogress-text);">{{ stats.in_progress }}</span>
+        <span class="stat-desc">Under active investigation</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Resolved / Closed</span>
+        <span class="stat-value" style="color: var(--status-resolved-text);">{{ stats.resolved + stats.closed }}</span>
+        <span class="stat-desc">{{ stats.resolved }} Resolved &bull; {{ stats.closed }} Closed</span>
+    </div>
+    <div class="stat-card {% if stats.overdue > 0 %}overdue-alert{% endif %}">
+        <span class="stat-label">Overdue Tickets</span>
+        <span class="stat-value" style="{% if stats.overdue > 0 %}color: var(--status-overdue-text);{% endif %}">{{ stats.overdue }}</span>
+        <span class="stat-desc">Past SLA target date</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Unassigned Queue</span>
+        <span class="stat-value" style="color: var(--brand-accent);">{{ stats.unassigned_count }}</span>
+        <span class="stat-desc">Awaiting staff allocation</span>
+    </div>
+</div>
+
+<!-- Unassigned Issues Claim Queue with Numbers -->
+{% if unassigned_issues %}
+<div class="table-card" style="border-left: 4px solid var(--brand-primary); margin-bottom: 2rem;">
+    <div class="table-header-bar" style="background: #ecfdf5; border-bottom: 1px solid #a7f3d0;">
+        <h3 style="color: #065f46;">Unassigned Issues Queue ({{ unassigned_issues|length }} Awaiting Handler)</h3>
+        <span style="font-size: 0.8rem; color: #047857; font-weight: 600;">Click Claim to assign ticket to yourself</span>
+    </div>
+    <table class="responsive-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">#</th>
+                <th>Ticket ID</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Location</th>
+                <th>Priority</th>
+                <th>Submitted By</th>
+                <th>Date Submitted</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in unassigned_issues %}
+            <tr>
+                <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                <td><strong>#{{ issue.Issue_ID }}</strong></td>
+                <td><span style="font-weight: 600;">{{ issue.Category_Name }}</span></td>
+                <td style="max-width: 250px;">{{ issue.Description }}</td>
+                <td>{{ issue.Location }}</td>
+                <td><span class="badge badge-p-{{ issue.Priority.lower() }}">{{ issue.Priority }}</span></td>
+                <td>{{ issue.Student_Name }} ({{ issue.Student_Dept }})</td>
+                <td style="font-size: 0.8rem; color: var(--text-muted);">{{ issue.Date_Submitted }}</td>
+                <td>
+                    <form action="{{ url_for('staff.claim_issue', issue_id=issue.Issue_ID) }}" method="POST" style="margin: 0;">
+                        <button type="submit" class="btn btn-primary btn-sm">Claim Issue</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Assigned Issues Table with Row Numbers -->
+<div class="table-card">
+    <div class="table-header-bar">
+        <h3>Issues Assigned to You ({{ stats.total_assigned }})</h3>
+        <a href="{{ url_for('staff.assigned_issues', scope='mine') }}" class="btn btn-secondary btn-sm">
+            View All ({{ stats.total_assigned }}) &rarr;
+        </a>
+    </div>
+
+    {% if assigned_issues %}
+    <table class="responsive-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">#</th>
+                <th>Ticket ID</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Student</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in assigned_issues %}
+            <tr>
+                <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                <td><strong>#{{ issue.Issue_ID }}</strong></td>
+                <td><span style="font-weight: 600;">{{ issue.Category_Name }}</span></td>
+                <td style="max-width: 250px;">
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ issue.Description }}">
+                        {{ issue.Description }}
+                    </div>
+                </td>
+                <td>{{ issue.Student_Name }}</td>
+                <td><span class="badge badge-p-{{ issue.Priority.lower() }}">{{ issue.Priority }}</span></td>
+                <td>
+                    <span class="badge badge-status-{{ issue.Status_ID }}">{{ issue.Status_Name }}</span>
+                    {% if issue.Is_Overdue %}
+                        <span class="badge badge-overdue">OVERDUE</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span style="font-size: 0.85rem; color: {% if issue.Is_Overdue %}var(--status-overdue-text); font-weight:700;{% else %}var(--text-muted);{% endif %}">
+                        {{ issue.Due_Date }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('student.view_issue_details', issue_id=issue.Issue_ID) }}" class="btn btn-secondary btn-sm">
+                        Manage Issue
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No active issues currently assigned to your staff profile.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

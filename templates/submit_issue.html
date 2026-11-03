@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Submit New Issue{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Submit Issue Ticket</h2>
+        <p class="page-subtitle">Report campus problems for administrative or departmental investigation and resolution.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('student.my_issues') }}" class="btn btn-secondary">
+            &larr; Back to My Issues
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; align-items: start;">
+    <!-- Issue Submission Form -->
+    <div class="form-card">
+        <form action="{{ url_for('student.submit_issue_page') }}" method="POST">
+            <div class="form-group">
+                <label for="category_id">Issue Category *</label>
+                <select name="category_id" id="category_id" class="form-control" required>
+                    <option value="" disabled selected>-- Select an Issue Category --</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.Category_ID }}" data-sla="{{ cat.Default_SLA_Days }}">
+                            {{ cat.Category_Name }} (Resolution Window: {{ cat.Default_SLA_Days }} Days)
+                        </option>
+                    {% endfor %}
+                </select>
+                <small style="color: var(--text-muted); font-size: 0.75rem;">
+                    Categorizes ticket routing to the appropriate department.
+                </small>
+            </div>
+
+            <!-- Dynamic SLA Notification Box -->
+            <div id="sla_notice_box" class="viva-box" style="display: none; margin-bottom: 1.25rem;">
+                <strong>Service Level Agreement (SLA):</strong>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem;">
+                    Standard resolution window: <strong id="sla_days_text"></strong>. 
+                    Calculated resolution target date: <strong id="sla_due_date_text" style="color: var(--brand-primary);"></strong>.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label for="location">Campus Location / Facility *</label>
+                <input type="text" name="location" id="location" class="form-control" placeholder="e.g. Block A Room 302, Library 2nd Floor, Hostel Block B" required>
+            </div>
+
+            <div class="form-group">
+                <label for="priority">Issue Priority *</label>
+                <select name="priority" id="priority" class="form-control" required>
+                    <option value="Low">Low - Minor inconvenience</option>
+                    <option value="Medium" selected>Medium - Normal operational priority</option>
+                    <option value="High">High - Significant disruption to classes or operations</option>
+                    <option value="Critical">Critical - Urgent safety hazard or critical failure</option>
+                </select>
+                <small style="color: var(--text-muted); font-size: 0.75rem;">
+                    Select Critical or High only for urgent campus or safety issues.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Detailed Description *</label>
+                <textarea name="description" id="description" class="form-control" rows="5" placeholder="Describe the issue with specific symptoms, equipment involved, and observable details..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <a href="{{ url_for('student.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.5rem;">
+                    Submit Issue Ticket
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Issue Guidelines Card -->
+    <div>
+        <div class="form-card" style="border-left: 4px solid var(--brand-primary);">
+            <h3 style="font-size: 0.95rem; text-transform: uppercase; color: var(--text-heading); margin-bottom: 0.75rem; letter-spacing: 0.5px; font-weight: 700;">Ticket Submission Guidelines</h3>
+            <ul style="font-size: 0.85rem; color: var(--text-body); padding-left: 1.25rem; line-height: 1.6;">
+                <li><strong>1. Choose Correct Category:</strong> Selecting the proper category ensures automatic routing to the relevant faculty or facility handler.</li>
+                <li><strong>2. Precise Location:</strong> State the exact building, floor, room number, or lab to accelerate inspection.</li>
+                <li><strong>3. SLA Tracking:</strong> Each category assigns an official resolution target date in business days.</li>
+                <li><strong>4. Resolution Feedback:</strong> Once marked as Resolved, you can rate the service and provide feedback.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

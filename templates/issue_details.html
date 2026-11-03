@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}Issue #{{ issue.Issue_ID }} - {{ issue.Category_Name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
+            <h2 class="page-title" style="margin: 0;">Issue Ticket #{{ issue.Issue_ID }}</h2>
+            <span class="badge badge-status-{{ issue.Status_ID }}" style="font-size: 0.85rem;">
+                {{ issue.Status_Name }}
+            </span>
+            <span class="badge badge-p-{{ issue.Priority.lower() }}">
+                Priority: {{ issue.Priority }}
+            </span>
+            {% if issue.Is_Overdue %}
+                <span class="badge badge-overdue">OVERDUE</span>
+            {% endif %}
+        </div>
+        <p class="page-subtitle">
+            Category: <strong>{{ issue.Category_Name }}</strong> &bull; 
+            Resolution SLA: <strong>{{ issue.Default_SLA_Days }} business days</strong> &bull; 
+            Logged On: <strong>{{ issue.Date_Submitted }}</strong>
+        </p>
+    </div>
+
+    <div>
+        {% if session.get('user_role') == 'student' %}
+            <a href="{{ url_for('student.my_issues') }}" class="btn btn-secondary">&larr; Return to My Issues</a>
+        {% else %}
+            <a href="{{ url_for('staff.assigned_issues') }}" class="btn btn-secondary">&larr; Return to Assigned Issues</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Issue Lifecycle Stepper with Clear Numbers 1-5 -->
+<div class="form-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+    <h4 style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.75rem; letter-spacing: 0.5px; font-weight: 700;">
+        Issue Lifecycle Progression (5 Stages)
+    </h4>
+    <div class="lifecycle-stepper">
+        <div class="step-node {% if issue.Status_ID > 1 %}completed{% elif issue.Status_ID == 1 %}active{% endif %}">
+            <div class="step-circle">1</div>
+            <div class="step-label">1. Submitted</div>
+        </div>
+
+        <div class="step-node {% if issue.Status_ID > 2 %}completed{% elif issue.Status_ID == 2 %}active{% endif %}">
+            <div class="step-circle">2</div>
+            <div class="step-label">2. Assigned</div>
+        </div>
+
+        <div class="step-node {% if issue.Status_ID > 3 %}completed{% elif issue.Status_ID == 3 %}active{% endif %}">
+            <div class="step-circle">3</div>
+            <div class="step-label">3. In Progress</div>
+        </div>
+
+        <div class="step-node {% if issue.Status_ID > 4 %}completed{% elif issue.Status_ID == 4 %}active{% endif %}">
+            <div class="step-circle">4</div>
+            <div class="step-label">4. Resolved</div>
+        </div>
+
+        <div class="step-node {% if issue.Status_ID == 5 %}completed{% endif %}">
+            <div class="step-circle">5</div>
+            <div class="step-label">5. Closed</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Details Grid -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; align-items: start; margin-bottom: 2rem;">
+    <!-- Left Column: Description & Actions -->
+    <div>
+        <div class="form-card" style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.05rem; color: var(--text-heading); margin-bottom: 0.75rem; font-weight: 700;">Issue Description</h3>
+            <p style="font-size: 0.95rem; color: var(--text-body); white-space: pre-wrap; line-height: 1.6; background: #f8fafc; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">{{ issue.Description }}</p>
+
+            <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
+                <div><strong>Location:</strong> {{ issue.Location }}</div>
+                <div><strong>Resolution Target Date:</strong> 
+                    <span style="{% if issue.Is_Overdue %}color: var(--status-overdue-text); font-weight: 700;{% endif %}">
+                        {{ issue.Due_Date }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staff Action Controls (if Staff or Admin) -->
+        {% if session.get('user_role') in ('staff', 'admin') %}
+        <div class="form-card" style="background: #f8fafc; border: 1px solid var(--border-subtle); margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-heading); margin-bottom: 0.75rem; letter-spacing: 0.5px; font-weight: 700;">Staff Management Controls</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="openModal('modal_add_action')">
+                    Record Action Taken
+                </button>
+                <button type="button" class="btn btn-warning btn-sm" onclick="openModal('modal_update_status')">
+                    Update Lifecycle Status
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('modal_reassign')">
+                    Reassign Issue Handler
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action History Audit Trail -->
+        <div class="table-card" style="margin-bottom: 1.5rem;">
+            <div class="table-header-bar">
+                <h3>Action & Investigation History ({{ issue.actions|length }} Entries)</h3>
+                <span class="badge badge-secondary">{{ issue.actions|length }} Recorded</span>
+            </div>
+
+            {% if issue.actions %}
+            <div style="padding: 1.25rem;">
+                <div class="timeline">
+                    {% for action in issue.actions %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span><strong>Action #{{ loop.index }}:</strong> {{ action.Staff_Name }} ({{ action.Staff_Dept }} &bull; {{ action.Staff_Role }})</span>
+                                <span>{{ action.Action_Date }}</span>
+                            </div>
+                            <p style="margin: 0; font-size: 0.9rem; color: var(--text-body);">{{ action.Action_Description }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p style="margin: 0;">No actions recorded on this issue yet.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Reassignment Log -->
+        {% if issue.reassignments %}
+        <div class="table-card" style="margin-bottom: 1.5rem;">
+            <div class="table-header-bar" style="background: #fffbeb; border-bottom: 1px solid #fde68a;">
+                <h3 style="color: #92400e;">Staff Reassignment Log ({{ issue.reassignments|length }} Transfers)</h3>
+                <span class="badge badge-warning">{{ issue.reassignments|length }} Logs</span>
+            </div>
+            <table class="responsive-table">
+                <thead>
+                    <tr>
+                        <th style="width: 45px;">#</th>
+                        <th>Date & Time</th>
+                        <th>Previous Staff</th>
+                        <th>New Assigned Staff</th>
+                        <th>Documented Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in issue.reassignments %}
+                    <tr>
+                        <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                        <td style="font-size: 0.8rem; color: var(--text-muted);">{{ r.Reassigned_On }}</td>
+                        <td>{{ r.Old_Staff_Name or 'Unassigned' }}</td>
+                        <td><strong>{{ r.New_Staff_Name }}</strong></td>
+                        <td style="font-size: 0.85rem;">{{ r.Reason }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Student, Staff, and Feedback -->
+    <div>
+        <!-- Student Info Card -->
+        <div class="form-card" style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-heading); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.5rem; letter-spacing: 0.5px;">
+                Submitted By
+            </h3>
+            <div style="font-size: 0.85rem; line-height: 1.6;">
+                <p><strong>Student Name:</strong> {{ issue.Student_Name }}</p>
+                <p><strong>Student ID / Roll No:</strong> #{{ issue.Student_ID }}</p>
+                <p><strong>Email:</strong> {{ issue.Student_Email }}</p>
+                <p><strong>Department:</strong> {{ issue.Student_Dept }}</p>
+                <p><strong>Academic Year:</strong> Year {{ issue.Student_Year }}</p>
+            </div>
+        </div>
+
+        <!-- Responsible Staff Card -->
+        <div class="form-card" style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-heading); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.5rem; letter-spacing: 0.5px;">
+                Assigned Staff Member
+            </h3>
+            {% if issue.Staff_Name %}
+            <div style="font-size: 0.85rem; line-height: 1.6;">
+                <p><strong>Staff ID:</strong> #{{ issue.Staff_ID }}</p>
+                <p><strong>Name:</strong> {{ issue.Staff_Name }}</p>
+                <p><strong>Department:</strong> {{ issue.Staff_Dept }}</p>
+                <p><strong>Designation:</strong> {{ issue.Staff_Role }}</p>
+            </div>
+            {% else %}
+            <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                <p style="margin-bottom: 0.5rem;">Pending assignment to a staff member.</p>
+                {% if session.get('user_role') in ('staff', 'admin') %}
+                <form action="{{ url_for('staff.claim_issue', issue_id=issue.Issue_ID) }}" method="POST">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        Claim Issue Assignment
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Student Feedback Card -->
+        <div class="form-card">
+            <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-heading); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.5rem; letter-spacing: 0.5px;">
+                Student Resolution Feedback
+            </h3>
+
+            {% if issue.feedback %}
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-sm); padding: 0.85rem;">
+                <div style="font-size: 0.95rem; color: #065f46; font-weight: 700; margin-bottom: 0.4rem;">
+                    Rating: {{ issue.feedback.Rating }} / 5.0
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-body); margin-bottom: 0.5rem; font-style: italic;">
+                    "{{ issue.feedback.Comments or 'No written remarks provided.' }}"
+                </p>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">
+                    Submitted On: {{ issue.feedback.Submitted_On }}
+                </div>
+            </div>
+            {% elif issue.Status_ID in (4, 5) and session.get('user_role') == 'student' and issue.Student_ID == session.get('user_id') %}
+            <!-- Feedback submission form for student -->
+            <form action="{{ url_for('student.post_feedback', issue_id=issue.Issue_ID) }}" method="POST">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                    The issue is marked as resolved. Please provide your resolution satisfaction rating:
+                </p>
+
+                <div class="form-group">
+                    <label for="rating">Satisfaction Rating (1 to 5 Stars)</label>
+                    <select name="rating" id="rating" class="form-control" required>
+                        <option value="5" selected>5 - Excellent Resolution</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Satisfactory</option>
+                        <option value="2">2 - Needs Improvement</option>
+                        <option value="1">1 - Unsatisfactory</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="comments">Student Comments</label>
+                    <textarea name="comments" id="comments" class="form-control" rows="3" placeholder="Provide optional remarks on the resolution..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-sm" style="width: 100%;">
+                    Submit Resolution Feedback
+                </button>
+            </form>
+            {% elif issue.Status_ID in (4, 5) %}
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Awaiting student resolution feedback submission.
+            </p>
+            {% else %}
+            <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                <p>Feedback unavailable.</p>
+                <p style="font-size: 0.75rem;">Feedback can be provided once the issue reaches <strong>Resolved</strong> or <strong>Closed</strong> status.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================================
+     STAFF MODALS (Accessible, Functional, Tested)
+     ========================================================================= -->
+
+<!-- Modal 1: Record Action Taken -->
+<div id="modal_add_action" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Record Action Taken (Ticket #{{ issue.Issue_ID }})</h3>
+            <button type="button" class="modal-close" onclick="closeModal('modal_add_action')">&times;</button>
+        </div>
+        <form action="{{ url_for('staff.post_action') }}" method="POST">
+            <input type="hidden" name="issue_id" value="{{ issue.Issue_ID }}">
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Record diagnostic or remedial steps taken for this ticket.
+                </p>
+                <div class="form-group">
+                    <label for="action_description">Action Description *</label>
+                    <textarea name="action_description" id="action_description" class="form-control" rows="4" placeholder="Document concrete action taken (e.g. inspected hardware, replaced cable, verified operation)..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal_add_action')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Action Note</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Update Status -->
+<div id="modal_update_status" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Update Issue Status (Ticket #{{ issue.Issue_ID }})</h3>
+            <button type="button" class="modal-close" onclick="closeModal('modal_update_status')">&times;</button>
+        </div>
+        <form action="{{ url_for('staff.update_status') }}" method="POST">
+            <input type="hidden" name="issue_id" value="{{ issue.Issue_ID }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="status_id">Target Status *</label>
+                    <select name="status_id" id="status_id" class="form-control" required>
+                        <option value="2" {% if issue.Status_ID == 2 %}selected{% endif %}>2 - Assigned</option>
+                        <option value="3" {% if issue.Status_ID == 3 %}selected{% endif %}>3 - In Progress</option>
+                        <option value="4" {% if issue.Status_ID == 4 %}selected{% endif %}>4 - Resolved</option>
+                        <option value="5" {% if issue.Status_ID == 5 %}selected{% endif %}>5 - Closed</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="action_description_status">Status Change Note (Optional)</label>
+                    <textarea name="action_description" id="action_description_status" class="form-control" rows="3" placeholder="Reason or context for status transition..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal_update_status')">Cancel</button>
+                <button type="submit" class="btn btn-warning">Update Status</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 3: Reassign Issue -->
+<div id="modal_reassign" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Reassign Issue Handler (Ticket #{{ issue.Issue_ID }})</h3>
+            <button type="button" class="modal-close" onclick="closeModal('modal_reassign')">&times;</button>
+        </div>
+        <form action="{{ url_for('staff.post_reassignment') }}" method="POST">
+            <input type="hidden" name="issue_id" value="{{ issue.Issue_ID }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new_staff_id">Select New Responsible Staff Member *</label>
+                    <select name="new_staff_id" id="new_staff_id" class="form-control" required>
+                        {% if all_staff %}
+                            {% for s in all_staff %}
+                                {% if s.Staff_ID != issue.Staff_ID %}
+                                <option value="{{ s.Staff_ID }}">ID #{{ s.Staff_ID }}: {{ s.Name }} ({{ s.Department }} - {{ s.Role }})</option>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <option value="201">ID #201: Dr. Suresh Kumar (Technical / IT)</option>
+                            <option value="202">ID #202: Prof. Sunita Rao (Academic)</option>
+                            <option value="203">ID #203: Mr. Anand Murthy (Facilities)</option>
+                            <option value="204">ID #204: Mrs. Meena Iyer (Administrative)</option>
+                            <option value="205">ID #205: Dr. Rajesh Verma (Academic)</option>
+                        {% endif %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">Documented Reason for Reassignment *</label>
+                    <textarea name="reason" id="reason" class="form-control" rows="3" placeholder="Provide justification for transferring responsibility..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal_reassign')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Confirm Reassignment</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
