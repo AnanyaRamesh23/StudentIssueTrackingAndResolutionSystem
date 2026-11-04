@@ -159,5 +159,33 @@ class DBMSSystemTestCase(unittest.TestCase):
 
         print("  [OK] Test 6 Passed: Web endpoints, session routing, and templates verified.")
 
+    def test_07_account_registration_categories(self):
+        """Verify registration for Student, Staff, and Admin categories."""
+        # 1. Verify GET /auth/register displays 'Register New Account' and 'Account Category'
+        res = self.client.get('/auth/register')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b'Register New Account', res.data)
+        self.assertIn(b'Account Category', res.data)
+
+        # 2. Register a new test staff member
+        test_staff_email = "test.staff.reg@college.edu"
+        execute_stmt("DELETE FROM STAFF WHERE Email = %s;", [test_staff_email])
+        reg_res = self.client.post('/auth/register', data={
+            'account_category': 'staff',
+            'name': 'Prof. Test Staff',
+            'email': test_staff_email,
+            'password': 'password123',
+            'staff_department': 'Technical / IT',
+            'staff_role': 'Assistant Lab Incharge'
+        }, follow_redirects=True)
+        self.assertEqual(reg_res.status_code, 200)
+        new_staff = query_one("SELECT Staff_ID, Name, Email, Role FROM STAFF WHERE Email = %s;", [test_staff_email])
+        self.assertIsNotNone(new_staff, "New staff should be inserted into STAFF table.")
+        self.assertEqual(new_staff['Name'], 'Prof. Test Staff')
+
+        # Cleanup
+        execute_stmt("DELETE FROM STAFF WHERE Email = %s;", [test_staff_email])
+        print("  [OK] Test 7 Passed: Account Registration across categories verified.")
+
 if __name__ == '__main__':
     unittest.main()

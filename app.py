@@ -43,6 +43,10 @@ def create_app():
     def login_redirect():
         return redirect(url_for('auth.login'))
 
+    @app.route('/register', methods=['GET', 'POST'])
+    def register_redirect():
+        return redirect(url_for('auth.register'))
+
     @app.route('/submit-issue', methods=['GET', 'POST'])
     def submit_issue_alias():
         return redirect(url_for('student.submit_issue_page'))

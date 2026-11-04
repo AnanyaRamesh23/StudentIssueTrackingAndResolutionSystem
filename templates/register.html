@@ -1,66 +1,171 @@
 {% extends "base.html" %}
 
-{% block title %}Student Registration{% endblock %}
+{% block title %}Register New Account{% endblock %}
 
 {% block content %}
-<div style="max-width: 540px; margin: 0 auto;">
+<div style="max-width: 580px; margin: 0 auto;">
     <div class="form-card">
-        <h2 style="font-size: 1.35rem; color: var(--text-heading); margin-bottom: 0.5rem; text-align: center; font-weight: 800; letter-spacing: -0.3px;">Student Account Registration</h2>
+        <h2 style="font-size: 1.35rem; color: var(--text-heading); margin-bottom: 0.5rem; text-align: center; font-weight: 800; letter-spacing: -0.3px;">Register New Account</h2>
         <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: 1.5rem;">
-            Create your campus profile to submit and track resolution tickets.
+            Select your account category and provide your institutional details.
         </p>
 
-        <form action="{{ url_for('auth.register') }}" method="POST">
+        <form action="{{ url_for('auth.register') }}" method="POST" id="registrationForm">
+            <!-- Account Category Selection -->
             <div class="form-group">
-                <label for="student_id">University Roll Number / Student ID (Numeric)</label>
-                <input type="number" name="student_id" id="student_id" class="form-control" placeholder="e.g. 110" min="1" required>
-                <small style="color: var(--text-muted); font-size: 0.75rem;">Your assigned institutional student registration number.</small>
+                <label for="account_category">Account Category</label>
+                <select name="account_category" id="account_category" class="form-control" onchange="toggleCategoryFields()" required>
+                    <option value="student" {% if selected_category == 'student' or not selected_category %}selected{% endif %}>Student</option>
+                    <option value="staff" {% if selected_category == 'staff' %}selected{% endif %}>Faculty / Staff Member</option>
+                    <option value="admin" {% if selected_category == 'admin' %}selected{% endif %}>Administrator</option>
+                </select>
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Determines your access privileges and departmental dashboard.</small>
             </div>
 
+            <!-- Common Fields -->
             <div class="form-group">
                 <label for="name">Full Name</label>
                 <input type="text" name="name" id="name" class="form-control" placeholder="e.g. Ananya Ramesh" required>
             </div>
 
             <div class="form-group">
-                <label for="email">College Email Address</label>
-                <input type="email" name="email" id="email" class="form-control" placeholder="e.g. ananya.new@college.edu" required>
-                <small style="color: var(--text-muted); font-size: 0.75rem;">Official email address for ticket updates.</small>
+                <label for="email">Institutional Email Address</label>
+                <input type="email" name="email" id="email" class="form-control" placeholder="e.g. ananya@college.edu" required>
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Official email address used for portal login and ticket updates.</small>
             </div>
 
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+            <!-- STUDENT-SPECIFIC FIELDS -->
+            <div id="student_fields">
                 <div class="form-group">
-                    <label for="department">Academic Department</label>
-                    <select name="department" id="department" class="form-control" required>
-                        <option value="Information Science & Engg">Information Science & Engg</option>
-                        <option value="Computer Science & Engg">Computer Science & Engg</option>
-                        <option value="Electronics & Comm Engg">Electronics & Comm Engg</option>
-                        <option value="Mechanical Engg">Mechanical Engg</option>
-                        <option value="Civil Engg">Civil Engg</option>
-                    </select>
+                    <label for="student_id">Student ID / Roll Number (Numeric)</label>
+                    <input type="number" name="student_id" id="student_id" class="form-control" placeholder="e.g. 112 (Leave blank to auto-generate)" min="1">
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">Assigned university roll number or leave blank to assign the next sequential ID.</small>
                 </div>
 
-                <div class="form-group">
-                    <label for="year">Year of Study (1-4)</label>
-                    <input type="number" name="year" id="year" class="form-control" min="1" max="4" value="1" required>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="department">Academic Department</label>
+                        <select name="department" id="department" class="form-control">
+                            <option value="Information Science & Engg">Information Science & Engg</option>
+                            <option value="Computer Science & Engg">Computer Science & Engg</option>
+                            <option value="Electronics & Comm Engg">Electronics & Comm Engg</option>
+                            <option value="Mechanical Engg">Mechanical Engg</option>
+                            <option value="Civil Engg">Civil Engg</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="year">Year (1-4)</label>
+                        <input type="number" name="year" id="year" class="form-control" min="1" max="4" value="1">
+                    </div>
                 </div>
             </div>
 
-            <div class="form-group">
+            <!-- STAFF-SPECIFIC FIELDS -->
+            <div id="staff_fields" style="display: none;">
+                <div class="form-group">
+                    <label for="staff_id">Staff / Employee ID (Numeric)</label>
+                    <input type="number" name="staff_id" id="staff_id" class="form-control" placeholder="e.g. 206 (Leave blank to auto-generate)" min="1">
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">Institutional employee number or leave blank to assign next available ID.</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="staff_department">Staff Department</label>
+                        <select name="staff_department" id="staff_department" class="form-control">
+                            <option value="Academic">Academic</option>
+                            <option value="Technical / IT">Technical / IT</option>
+                            <option value="Facilities">Facilities</option>
+                            <option value="Administrative">Administrative</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="staff_role">Staff Role / Designation</label>
+                        <input type="text" name="staff_role" id="staff_role" class="form-control" placeholder="e.g. Assistant Professor, Lab Incharge">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN-SPECIFIC FIELDS -->
+            <div id="admin_fields" style="display: none;">
+                <div class="form-group">
+                    <label for="admin_id">Administrator ID (Numeric)</label>
+                    <input type="number" name="admin_id" id="admin_id" class="form-control" placeholder="e.g. 301 (Leave blank to auto-generate)" min="1">
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">Institutional admin ID or leave blank to assign next available ID.</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="admin_department">Administrative Unit</label>
+                        <select name="admin_department" id="admin_department" class="form-control">
+                            <option value="Administration">Administration</option>
+                            <option value="Dean Office">Dean Office</option>
+                            <option value="Academic Affairs">Academic Affairs</option>
+                            <option value="Examination Section">Examination Section</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="admin_role">Administrator Title</label>
+                        <input type="text" name="admin_role" id="admin_role" class="form-control" placeholder="e.g. System Administrator, Dean" value="Campus Administrator">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-group" style="margin-top: 0.5rem;">
                 <label for="password">Account Password</label>
                 <input type="password" name="password" id="password" class="form-control" placeholder="Create a secure password" required>
             </div>
 
             <div style="margin-top: 1.75rem;">
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 0.95rem;">
-                    Complete Registration
+                    Register New Account
                 </button>
             </div>
         </form>
 
         <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle); text-align: center; font-size: 0.85rem;">
-            <p>Already registered? <a href="{{ url_for('auth.login') }}" style="color: var(--brand-primary); font-weight: 700; text-decoration: none;">Sign in here</a></p>
+            <p>Already have an account? <a href="{{ url_for('auth.login') }}" style="color: var(--brand-primary); font-weight: 700; text-decoration: none;">Sign in here</a></p>
         </div>
     </div>
 </div>
+
+<script>
+function toggleCategoryFields() {
+    var category = document.getElementById('account_category').value;
+    var studentFields = document.getElementById('student_fields');
+    var staffFields = document.getElementById('staff_fields');
+    var adminFields = document.getElementById('admin_fields');
+
+    var yearInput = document.getElementById('year');
+    var staffRoleInput = document.getElementById('staff_role');
+    var adminRoleInput = document.getElementById('admin_role');
+
+    if (category === 'student') {
+        studentFields.style.display = 'block';
+        staffFields.style.display = 'none';
+        adminFields.style.display = 'none';
+        if (yearInput) yearInput.required = true;
+        if (staffRoleInput) staffRoleInput.required = false;
+        if (adminRoleInput) adminRoleInput.required = false;
+    } else if (category === 'staff') {
+        studentFields.style.display = 'none';
+        staffFields.style.display = 'block';
+        adminFields.style.display = 'none';
+        if (yearInput) yearInput.required = false;
+        if (staffRoleInput) staffRoleInput.required = true;
+        if (adminRoleInput) adminRoleInput.required = false;
+    } else if (category === 'admin') {
+        studentFields.style.display = 'none';
+        staffFields.style.display = 'none';
+        adminFields.style.display = 'block';
+        if (yearInput) yearInput.required = false;
+        if (staffRoleInput) staffRoleInput.required = false;
+        if (adminRoleInput) adminRoleInput.required = true;
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleCategoryFields);
+</script>
 {% endblock %}

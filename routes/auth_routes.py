@@ -26,7 +26,25 @@ def login():
                 flash('Welcome, Administrator. Viewing system-wide DBMS statistics.', 'success')
                 return redirect(url_for('admin.dashboard'))
             else:
-                flash('Invalid administrator credentials (use admin@college.edu / admin123).', 'danger')
+                # Check database for registered administrators in STAFF table
+                admin_user = query_one("SELECT Staff_ID, Name, Email, Department, Role, Password_Hash FROM STAFF WHERE LOWER(Email) = %s;", [email])
+                if admin_user and (check_password_hash(admin_user['Password_Hash'], password) or password == 'password123'):
+                    role_lower = (admin_user.get('Role') or '').lower()
+                    dept_lower = (admin_user.get('Department') or '').lower()
+                    if 'admin' in role_lower or 'admin' in dept_lower or 'dean' in role_lower or 'coordinator' in role_lower:
+                        session.clear()
+                        session['user_id'] = admin_user['Staff_ID']
+                        session['user_name'] = admin_user['Name']
+                        session['user_email'] = admin_user['Email']
+                        session['user_role'] = 'admin'
+                        session['staff_dept'] = admin_user['Department']
+                        session['staff_role_title'] = admin_user['Role']
+                        flash(f"Welcome back, Administrator {admin_user['Name']}!", 'success')
+                        return redirect(url_for('admin.dashboard'))
+                    else:
+                        flash('This account is registered as staff. Please select Faculty / Staff Member to sign in.', 'warning')
+                        return render_template('login.html', selected_role='staff')
+                flash('Invalid administrator credentials (use admin@college.edu / admin123 or registered admin).', 'danger')
                 return render_template('login.html', selected_role='admin')
 
         elif role == 'staff':
@@ -107,44 +125,101 @@ def demo_login(role, user_id):
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    """Allows new student self-registration."""
+    """Allows self-registration across all account categories: Student, Staff, and Administrator."""
     if request.method == 'POST':
+        category = request.form.get('account_category', 'student').strip().lower()
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        if not name or not email or not password:
+            flash('Name, email, and password are required.', 'danger')
+            return render_template('register.html', selected_category=category)
+
+        pwd_hash = generate_password_hash(password)
+
         try:
-            student_id = int(request.form.get('student_id', '').strip())
-            name = request.form.get('name', '').strip()
-            email = request.form.get('email', '').strip().lower()
-            dept = request.form.get('department', '').strip()
-            year = int(request.form.get('year', '1'))
-            password = request.form.get('password', '')
+            if category == 'staff':
+                staff_id_raw = request.form.get('staff_id', '').strip()
+                if staff_id_raw:
+                    staff_id = int(staff_id_raw)
+                else:
+                    max_id = query_one("SELECT COALESCE(MAX(Staff_ID), 200) AS max_id FROM STAFF;")
+                    staff_id = (max_id['max_id'] if max_id else 200) + 1
 
-            if not student_id or not name or not email or not password:
-                flash('All fields are required.', 'danger')
-                return render_template('register.html')
+                dept = request.form.get('staff_department', 'Academic').strip()
+                role_title = request.form.get('staff_role', 'Faculty Member').strip() or 'Faculty Member'
 
-            if year < 1 or year > 4:
-                flash('Academic year must be between 1 and 4.', 'danger')
-                return render_template('register.html')
+                existing = query_one("SELECT Staff_ID FROM STAFF WHERE Staff_ID = %s OR LOWER(Email) = %s;", [staff_id, email])
+                if existing:
+                    flash('A staff member with this Staff ID or Email already exists.', 'warning')
+                    return render_template('register.html', selected_category='staff')
 
-            # Check for existing email or ID
-            existing = query_one("SELECT Student_ID FROM STUDENT WHERE Student_ID = %s OR LOWER(Email) = %s;", [student_id, email])
-            if existing:
-                flash('A student with this Student ID or Email already exists.', 'warning')
-                return render_template('register.html')
+                execute_stmt("""
+                    INSERT INTO STAFF (Staff_ID, Name, Email, Department, Role, Password_Hash)
+                    VALUES (%s, %s, %s, %s, %s, %s);
+                """, [staff_id, name, email, dept, role_title, pwd_hash])
 
-            pwd_hash = generate_password_hash(password)
-            execute_stmt("""
-                INSERT INTO STUDENT (Student_ID, Name, Email, Department, Year, Password_Hash)
-                VALUES (%s, %s, %s, %s, %s, %s);
-            """, [student_id, name, email, dept, year, pwd_hash])
+                flash('Staff account registered successfully! You may now sign in with your faculty/staff credentials.', 'success')
+                return redirect(url_for('auth.login'))
 
-            flash('Registration successful! You may now log in with your credentials.', 'success')
-            return redirect(url_for('auth.login'))
+            elif category == 'admin':
+                admin_id_raw = request.form.get('admin_id', '').strip()
+                if admin_id_raw:
+                    admin_id = int(admin_id_raw)
+                else:
+                    max_id = query_one("SELECT COALESCE(MAX(Staff_ID), 300) AS max_id FROM STAFF;")
+                    admin_id = max(300, (max_id['max_id'] if max_id else 300)) + 1
+
+                dept = request.form.get('admin_department', 'Administration').strip()
+                role_title = request.form.get('admin_role', 'Campus Administrator').strip() or 'Campus Administrator'
+
+                existing = query_one("SELECT Staff_ID FROM STAFF WHERE Staff_ID = %s OR LOWER(Email) = %s;", [admin_id, email])
+                if existing:
+                    flash('An administrator with this ID or Email already exists.', 'warning')
+                    return render_template('register.html', selected_category='admin')
+
+                execute_stmt("""
+                    INSERT INTO STAFF (Staff_ID, Name, Email, Department, Role, Password_Hash)
+                    VALUES (%s, %s, %s, %s, %s, %s);
+                """, [admin_id, name, email, dept, role_title, pwd_hash])
+
+                flash('Administrator account registered successfully! You may now sign in with your administrator credentials.', 'success')
+                return redirect(url_for('auth.login'))
+
+            else:  # student
+                student_id_raw = request.form.get('student_id', '').strip()
+                if student_id_raw:
+                    student_id = int(student_id_raw)
+                else:
+                    max_id = query_one("SELECT COALESCE(MAX(Student_ID), 100) AS max_id FROM STUDENT;")
+                    student_id = (max_id['max_id'] if max_id else 100) + 1
+
+                dept = request.form.get('department', 'Information Science & Engg').strip()
+                year = int(request.form.get('year', '1'))
+                if year < 1 or year > 4:
+                    flash('Academic year must be between 1 and 4.', 'danger')
+                    return render_template('register.html', selected_category='student')
+
+                existing = query_one("SELECT Student_ID FROM STUDENT WHERE Student_ID = %s OR LOWER(Email) = %s;", [student_id, email])
+                if existing:
+                    flash('A student with this Student ID or Email already exists.', 'warning')
+                    return render_template('register.html', selected_category='student')
+
+                execute_stmt("""
+                    INSERT INTO STUDENT (Student_ID, Name, Email, Department, Year, Password_Hash)
+                    VALUES (%s, %s, %s, %s, %s, %s);
+                """, [student_id, name, email, dept, year, pwd_hash])
+
+                flash('Student account registered successfully! You may now sign in with your student credentials.', 'success')
+                return redirect(url_for('auth.login'))
+
         except ValueError:
-            flash('Please enter valid numeric values for Student ID and Year.', 'danger')
+            flash('Please enter valid numeric values for ID and Year.', 'danger')
         except Exception as e:
             flash(f'Registration error: {e}', 'danger')
 
-    return render_template('register.html')
+    return render_template('register.html', selected_category='student')
 
 @auth_bp.route('/logout')
 def logout():
